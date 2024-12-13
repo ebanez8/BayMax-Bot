@@ -1,0 +1,32 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'Merriweather', sans-serif;
+  height: 5vh; /* Adjust height as needed */
+}
+
+.container-fluid {
+  display: flex;
+  width: 100%;
+  justify-content: space-between; /* Ensures left and right alignment */
+  position: relative;
+}
+
+.mx-auto {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.d-flex {
+  display: flex;
+  gap: 20px; /* Adjust spacing between right section links */
+}
+
+.navbar a {
+  text-decoration: none; /* Removes underline from links */
+  color: black; /* Adjust text color */
+  font-size: 32x; /* Optional: Adjust font size */
+}
