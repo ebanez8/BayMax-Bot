@@ -1,1 +1,1 @@
-BayMax-Bot
+BayMax Bot
