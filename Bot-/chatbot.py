@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 import logging
 import re
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 import torch
 import numpy as np
 from collections import defaultdict
@@ -22,19 +22,22 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
     return response
 
-# Load multiple medical models for better accuracy
+# Initialize the medical models globally
+logger.info("Loading medical models...")
 try:
-    logger.info("Loading medical models...")
-    
-    # Main medical model for general classification
+    # Main classification model
     medical_model = pipeline(
         "zero-shot-classification",
-        model="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext"
+        model="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext",
+        device=0 if torch.cuda.is_available() else -1
     )
     
-    # Specialized model for symptom severity
-    severity_tokenizer = AutoTokenizer.from_pretrained("microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract")
-    severity_model = AutoModelForSequenceClassification.from_pretrained("microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract")
+    # Severity analysis model
+    severity_model = pipeline(
+        "text-classification",
+        model="microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract",
+        device=0 if torch.cuda.is_available() else -1
+    )
     
     logger.info("Medical models loaded successfully")
 except Exception as e:
@@ -186,13 +189,88 @@ Remember:
 • Call emergency services for severe symptoms
 """
 
-def extract_severity(text: str) -> str:
-    """Determine the severity level from the text"""
-    text = text.lower()
-    for level, indicators in SEVERITY_INDICATORS.items():
-        if any(indicator in text for indicator in indicators):
-            return level
-    return "unknown"
+# Add a new dictionary for follow-up questions based on symptoms
+FOLLOW_UP_QUESTIONS = {
+    "headache": [
+        "How long have you had this headache?",
+        "On a scale of 1-10, how severe is the pain?",
+        "Is it constant or does it come and go?",
+        "Does anything make it better or worse?",
+        "Do you have any other symptoms like nausea or sensitivity to light?"
+    ],
+    "cough": [
+        "How long have you been coughing?",
+        "Is it a dry cough or are you producing mucus?",
+        "How frequent is the coughing?",
+        "Do you have any other symptoms like fever or chest pain?",
+        "Is it worse at certain times of day?"
+    ],
+    "fever": [
+        "Do you know your current temperature?",
+        "How long have you had the fever?",
+        "Have you taken any medication for it?",
+        "Do you have any other symptoms?",
+        "Does the fever come and go or is it constant?"
+    ],
+    "pain": [
+        "Where exactly is the pain located?",
+        "How long have you had this pain?",
+        "On a scale of 1-10, how severe is it?",
+        "Is it constant or does it come and go?",
+        "Does anything make it better or worse?"
+    ],
+    "breathing": [
+        "How long have you had breathing difficulties?",
+        "Does it happen at rest or with activity?",
+        "Do you have chest pain or tightness?",
+        "Is it getting worse over time?",
+        "Do you have any other symptoms?"
+    ],
+    "rash": [
+        "Where is the rash located?",
+        "How long have you had it?",
+        "Is it itchy or painful?",
+        "Have you been exposed to anything new?",
+        "Does anything make it better or worse?"
+    ],
+    "stomach": [
+        "What type of stomach discomfort are you experiencing?",
+        "How long has this been going on?",
+        "Have you noticed any patterns with eating?",
+        "Do you have any other symptoms like nausea or vomiting?",
+        "On a scale of 1-10, how severe is the discomfort?"
+    ],
+    "fatigue": [
+        "How long have you been feeling tired?",
+        "Is it constant or worse at certain times?",
+        "Are you getting enough sleep?",
+        "Do you have any other symptoms?",
+        "Has anything changed in your routine recently?"
+    ]
+}
+
+def get_follow_up_questions(symptoms: str) -> List[str]:
+    """Get relevant follow-up questions based on symptoms"""
+    questions = []
+    symptoms_lower = symptoms.lower()
+    
+    # Check each symptom category and add relevant questions
+    for symptom, follow_ups in FOLLOW_UP_QUESTIONS.items():
+        if symptom in symptoms_lower:
+            questions.extend(follow_ups)
+    
+    # If no specific questions found, add general questions
+    if not questions:
+        questions = [
+            "How long have you had these symptoms?",
+            "On a scale of 1-10, how severe are your symptoms?",
+            "Do the symptoms come and go or are they constant?",
+            "Does anything make them better or worse?",
+            "Do you have any other symptoms?"
+        ]
+    
+    # Return top 3 most relevant questions
+    return questions[:3]
 
 def check_emergency(text: str) -> Tuple[bool, str]:
     """Check if the symptoms described are emergency conditions"""
@@ -202,119 +280,143 @@ def check_emergency(text: str) -> Tuple[bool, str]:
             return True, explanation
     return False, ""
 
-def count_matching_symptoms(user_input: str, condition_symptoms: List[str]) -> int:
-    """Count how many symptoms of a condition match the user's input"""
-    user_input = user_input.lower()
-    return sum(1 for symptom in condition_symptoms if symptom in user_input)
-
-def extract_symptom_patterns(text: str) -> Dict[str, List[str]]:
-    """Extract detailed symptom patterns from text"""
-    patterns = defaultdict(list)
-    for pattern_type, regex in SYMPTOM_PATTERNS.items():
-        matches = re.finditer(regex, text.lower())
-        patterns[pattern_type].extend(match.group(1) for match in matches)
-    return patterns
-
-def calculate_symptom_relationships(symptoms: List[str]) -> float:
-    """Calculate relationship score between symptoms"""
-    relationship_score = 0
-    for symptom in symptoms:
-        if symptom in SYMPTOM_RELATIONSHIPS:
-            related = SYMPTOM_RELATIONSHIPS[symptom]
-            relationship_score += sum(1 for s in symptoms if s in related)
-    return relationship_score / (len(symptoms) or 1)
-
 def analyze_severity(text: str) -> float:
-    """Analyze symptom severity using the specialized model"""
+    """Analyze symptom severity using the medical model"""
     try:
-        inputs = severity_tokenizer(text, return_tensors="pt", truncation=True, max_length=512)
-        with torch.no_grad():
-            outputs = severity_model(**inputs)
-            severity_score = torch.sigmoid(outputs.logits).item()
+        # Use the severity model to classify the text
+        result = severity_model(text)
+        # Convert the output score to a severity value between 0 and 1
+        severity_score = result[0]['score']
         return severity_score
     except Exception as e:
         logger.error(f"Error in severity analysis: {e}")
         return 0.5
 
+class ConversationState:
+    def __init__(self):
+        self.current_symptoms = {}  # Store symptom information
+        self.follow_up_questions = []  # Queue of follow-up questions
+        self.current_question_index = 0  # Track which question we're on
+        self.initial_complaint = ""  # Store initial symptom description
+
+    def start_new_conversation(self, initial_input: str):
+        """Start a new conversation with initial symptoms"""
+        self.current_symptoms = {}
+        self.follow_up_questions = []
+        self.current_question_index = 0
+        self.initial_complaint = initial_input
+
+    def add_answer(self, answer: str):
+        """Add answer to current symptoms"""
+        if self.follow_up_questions:
+            current_question = self.follow_up_questions[self.current_question_index - 1]
+            self.current_symptoms[current_question] = answer
+
+    def get_next_question(self) -> Optional[str]:
+        """Get next follow-up question if available"""
+        if self.current_question_index < len(self.follow_up_questions):
+            question = self.follow_up_questions[self.current_question_index]
+            self.current_question_index += 1
+            return question
+        return None
+
+    def has_enough_info(self) -> bool:
+        """Check if we have gathered enough information"""
+        return self.current_question_index >= len(self.follow_up_questions)
+
+    def get_full_description(self) -> str:
+        """Combine all gathered information into a detailed description"""
+        description = self.initial_complaint + ". "
+        for question, answer in self.current_symptoms.items():
+            # Extract the key information from the answer
+            description += f"{answer}. "
+        return description
+
+# Create a global conversation state manager
+conversation_state = ConversationState()
+
 def analyze_symptoms(user_input: str) -> str:
-    """Enhanced symptom analysis using multiple models and pattern matching"""
+    """Analyze symptoms using the medical AI models"""
+    global conversation_state
+
     # Check for emergency conditions first
     is_emergency, emergency_explanation = check_emergency(user_input)
     if is_emergency:
+        conversation_state = ConversationState()  # Reset state
         return f"🚨 EMERGENCY: {emergency_explanation}\nPlease seek immediate medical attention or call emergency services."
 
     try:
-        # Extract symptom patterns
-        patterns = extract_symptom_patterns(user_input)
-        
+        # If this is a new conversation (no follow-up questions pending)
+        if not conversation_state.follow_up_questions:
+            # Check if the description is too vague
+            word_count = len(user_input.split())
+            has_duration = any(word in user_input.lower() for word in ['day', 'days', 'week', 'weeks', 'hour', 'hours', 'month', 'months'])
+            has_severity = any(word in user_input.lower() for word in ['mild', 'moderate', 'severe', 'slight', 'intense', 'bad'])
+            
+            if word_count < 10 or not (has_duration or has_severity):
+                # Start new conversation with follow-up questions
+                conversation_state.start_new_conversation(user_input)
+                conversation_state.follow_up_questions = get_follow_up_questions(user_input)
+                
+                # Return first question
+                first_question = conversation_state.get_next_question()
+                return f"To better understand your symptoms, please answer this question:\n\n{first_question}"
+        else:
+            # Process answer to previous question
+            conversation_state.add_answer(user_input)
+            
+            # Check if we have more questions
+            next_question = conversation_state.get_next_question()
+            if next_question:
+                return f"Thank you. Please answer this follow-up question:\n\n{next_question}"
+            
+            # If we have all answers, use the complete description for analysis
+            user_input = conversation_state.get_full_description()
+
         # Get severity score
         severity_score = analyze_severity(user_input)
-        
-        # Use main model for initial classification
+        logger.info(f"Severity score: {severity_score}")
+
+        # Use medical model for condition classification
         result = medical_model(
             user_input,
             candidate_labels=list(MEDICAL_CONDITIONS.keys()),
-            multi_label=True
+            multi_label=True,
+            hypothesis_template="The patient has {}"
         )
+        logger.info(f"Model results: {result}")
 
-        # Enhanced analysis with multiple factors
+        # Process results with higher confidence threshold
         enhanced_results = []
         for label, score in zip(result["labels"], result["scores"]):
-            condition_info = MEDICAL_CONDITIONS[label]
-            
-            # Count matching symptoms
-            matching_symptoms = [s for s in condition_info["symptoms"] if s in user_input.lower()]
-            symptom_match_score = len(matching_symptoms) / len(condition_info["symptoms"])
-            
-            # Calculate relationship score
-            relationship_score = calculate_symptom_relationships(matching_symptoms)
-            
-            # Calculate pattern match score
-            pattern_score = sum(len(patterns[p]) > 0 for p in patterns) / len(SYMPTOM_PATTERNS)
-            
-            # Combine scores with weights
-            adjusted_score = (
-                score * 0.3 +                  # Base model score
-                symptom_match_score * 0.3 +    # Symptom matching
-                relationship_score * 0.2 +     # Symptom relationships
-                pattern_score * 0.2            # Pattern matching
-            )
-            
-            # Adjust for severity
-            if severity_score > 0.7 and "severe" in condition_info["severity"]:
-                adjusted_score *= 1.2
-            elif severity_score < 0.3 and "mild" in condition_info["severity"]:
-                adjusted_score *= 1.2
+            if score > 0.35:
+                condition_info = MEDICAL_CONDITIONS[label]
+                matching_symptoms = [s for s in condition_info["symptoms"] if s.lower() in user_input.lower()]
+                
+                if matching_symptoms:
+                    symptom_score = len(matching_symptoms) / len(condition_info["symptoms"])
+                    adjusted_score = (score + symptom_score) / 2
+                    
+                    if severity_score > 0.7 and "severe" in condition_info["severity"]:
+                        adjusted_score *= 1.2
+                    elif severity_score < 0.3 and "mild" in condition_info["severity"]:
+                        adjusted_score *= 1.2
 
-            if adjusted_score > 0.4:  # Higher threshold for more accuracy
-                enhanced_results.append((label, adjusted_score, condition_info))
+                    enhanced_results.append((label, adjusted_score, condition_info, matching_symptoms))
 
         if enhanced_results:
-            # Sort by adjusted score
+            # Reset conversation state after successful analysis
+            conversation_state = ConversationState()
+            
             enhanced_results.sort(key=lambda x: x[1], reverse=True)
+            response = "Based on AI analysis of your symptoms:\n\n"
+            severity_text = "severe" if severity_score > 0.7 else "moderate" if severity_score > 0.3 else "mild"
+            response += f"Severity Assessment: {severity_text.title()}\n\n"
             
-            response = "Based on comprehensive AI analysis of your symptoms:\n\n"
-            
-            # Add pattern information if available
-            if any(patterns.values()):
-                response += "📊 Symptom Analysis:\n"
-                if patterns["duration"]:
-                    response += f"• Duration: {', '.join(patterns['duration'])}\n"
-                if patterns["frequency"]:
-                    response += f"• Frequency: {', '.join(patterns['frequency'])}\n"
-                if patterns["intensity"]:
-                    response += f"• Intensity: {', '.join(patterns['intensity'])}\n"
-                if patterns["progression"]:
-                    response += f"• Progression: {', '.join(patterns['progression'])}\n"
-                if patterns["time_of_day"]:
-                    response += f"• Time pattern: {', '.join(patterns['time_of_day'])}\n"
-                response += "\n"
-            
-            # Add top conditions
-            for condition, confidence, info in enhanced_results[:3]:
+            for condition, confidence, info, matching_symptoms in enhanced_results[:3]:
                 response += f"🔍 {condition} (Confidence: {confidence:.1%})\n"
-                response += f"• Matching symptoms: {', '.join(s for s in info['symptoms'] if s in user_input.lower())}\n"
-                response += f"• Other common symptoms: {', '.join(s for s in info['symptoms'] if s not in user_input.lower())}\n"
+                response += f"• Matching symptoms: {', '.join(matching_symptoms)}\n"
+                response += f"• Other potential symptoms: {', '.join(s for s in info['symptoms'] if s not in matching_symptoms)}\n"
                 response += f"• Severity level: {info['severity']}\n"
                 response += f"• Description: {info['description']}\n"
                 response += f"• Typical duration: {info['typical_duration']}\n\n"
@@ -322,16 +424,24 @@ def analyze_symptoms(user_input: str) -> str:
             response += MEDICAL_DISCLAIMER
             return response
         else:
-            return ("I couldn't identify any specific medical conditions with high confidence based on the symptoms you described. "
-                   "Please provide more details about your symptoms, such as:\n"
-                   "• How long you've had them\n"
-                   "• Their severity\n"
-                   "• Any patterns or triggers\n"
-                   "• Related symptoms\n\n"
-                   "This will help me provide a more accurate analysis.")
+            # If no conditions found but we have complete information
+            if conversation_state.has_enough_info():
+                conversation_state = ConversationState()  # Reset state
+                return ("Based on the information provided, I cannot confidently identify any specific conditions. "
+                       "Please consult with a healthcare professional for a proper diagnosis.")
+            
+            # If we still need more information
+            next_question = conversation_state.get_next_question()
+            if next_question:
+                return f"Please answer this follow-up question:\n\n{next_question}"
+            
+            # Fallback response
+            conversation_state = ConversationState()  # Reset state
+            return "I need more specific information about your symptoms. Could you please describe them in more detail?"
 
     except Exception as e:
         logger.error(f"Error in medical analysis: {e}")
+        conversation_state = ConversationState()  # Reset state on error
         return "I apologize, but I'm having trouble analyzing your symptoms. Please try describing them differently or consult with a healthcare professional."
 
 @app.route('/chat', methods=['POST', 'OPTIONS'])
