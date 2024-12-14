@@ -10,6 +10,12 @@
     <link rel="stylesheet" href="Components/NBar/navbarstyle.css">
     <style>
         /* Navigation styles */
+        .bot-profile-pic {
+            width: 45px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
         .navbar {
             background-color: #d10a00;
             padding: 15px 0;
@@ -179,7 +185,16 @@
                 <div class="chat-container">
                     <div class="chat-box" id="chatBox">
                         <div class="message bot-message">
-                            Hello! I'm BayMax, your medical assistant. Please describe your symptoms, and I'll help analyze them. Remember, I'm here to help but not to replace professional medical advice.
+                            
+                            <div class = "message-content">
+                                <img 
+                                src="assets/baymax.png" 
+                                alt="BayMax Profile Picture" 
+                                class="bot-profile-pic"
+                            >
+                                Hello! I'm BayMax, your medical assistant. Please describe your symptoms, and I'll help analyze them. Remember, I'm here to help but not to replace professional medical advice.
+                            </div>
+                            
                         </div>
                     </div>
                     <div class="typing-indicator" id="typingIndicator">BayMax is thinking...</div>
