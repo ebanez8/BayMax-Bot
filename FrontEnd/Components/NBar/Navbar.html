@@ -1,21 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <link rel="stylesheet" href="Components/NBar/navbarstyle.css">
-  <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;500;700&display=swap" rel="stylesheet">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Navbar</title>
+    <link rel="stylesheet" href="Components/NBar/navbarstyle.css">
 </head>
+<body>
+    <!-- ======= Header ======= -->
+    <header id="header" class="d-flex align-items-center">
+        <div class="container">
 
-<nav class="navbar custom-navbar">
-  <div class="container-fluid">
-    <!-- Left Section -->
-    <a class="navbar-brand" href="/frontEnd/index.html">Baymax Bot</a>
+            <!-- Logo Section -->
+            <div class="logo">
+                <a href="index.html">
+                    <img src="assets/baymax.png" alt="Baymax Bot">
+                </a>
+                <span class="logo-text">BayMax <span class="highlight">BOT</span></span>
+            </div>
 
-    <!-- Middle Section -->
-    <div class="d-flex">
-      <a class="nav-link" href="#">Online Diagnosis</a>
-    </div>
-
-    <!-- Right Section -->
-    <div class="d-flex">
-      <a class="nav-link" href="#">About Us</a>
-    </div>
-  </div>
-</nav>
+            <!-- Navigation Menu -->
+            <nav class="nav-menu">
+              <a href="index.html">Home</a>
+                <a href="#">Diagnosis</a>
+                <a href="About.html">About</a>
+                <a href="#">Our Team</a>
+                <div class="get-started">
+                    <a href="#">Donate</a>
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+</html>

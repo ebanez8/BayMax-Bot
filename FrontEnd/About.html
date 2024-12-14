@@ -1,13 +1,123 @@
 <!DOCTYPE html>
-<html
+<html lang="en">
 <head>
-    <meta charset="utf-8" />
-    <meta name="author" content="Evan Zhou" />
-    <title>About Us</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Bootstrap CSS -->
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baymax Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9f9f9;
+            color: #333;
+            line-height: 1.6;
+        }
+        header {
+            background-color: #b9c7d4;
+            color: rgb(0, 0, 0);
+            padding: 1rem 0;
+            text-align: center;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+        header p {
+            font-size: 1.2rem;
+        }
+        main {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 1rem;
+            background: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        section {
+            margin-bottom: 2rem;
+        }
+        section h2 {
+            color: #4CAF50;
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+        footer {
+            text-align: center;
+            padding: 1rem;
+            background: #f1f1f1;
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 2rem;
+        }
+    </style>
 </head>
+<body>
+  <div id="navbar-placeholder"></div>
+    <header>
+        <h1>Baymax Bot</h1>
+        <p>Your Personal Health Companion</p>
+    </header>
+    <main>
+        <section>
+            <h2>About Baymax Bot</h2>
+            <p>Welcome to Baymax Bot, your personal health companion inspired by the caring and compassionate nature of Baymax from Disney's Big Hero 6. Our mission is to make healthcare advice more accessible, empowering users with helpful information, tools, and resources tailored to their needs.</p>
+        </section>
+        <section>
+            <h2>Who We Are</h2>
+            <p>Baymax Bot is more than just a chatbot; it's a friendly assistant designed to provide:</p>
+            <ul>
+                <li><strong>Health Tips:</strong> Quick, reliable tips to maintain a healthy lifestyle.</li>
+                <li><strong>Symptom Guidance:</strong> General information about common symptoms and conditions (not a substitute for professional medical advice).</li>
+                <li><strong>Resources:</strong> Easy access to trusted health-related articles and links.</li>
+            </ul>
+            <p>Our goal is to ensure that everyone can feel supported and informed when it comes to their health.</p>
+        </section>
+        <section>
+            <h2>Why Choose Baymax Bot?</h2>
+            <p>Here are some reasons to make Baymax Bot your go-to health companion:</p>
+            <ul>
+                <li><strong>User-Friendly:</strong> Interact naturally through text, with simple and easy-to-understand responses.</li>
+                <li><strong>Compassionate Design:</strong> Inspired by Baymax, our chatbot prioritizes kindness, patience, and understanding.</li>
+                <li><strong>Accessible 24/7:</strong> Get the help you need anytime, anywhere.</li>
+            </ul>
+        </section>
+        <section>
+            <h2>Our Inspiration</h2>
+            <p>The lovable Baymax character was designed to care for others, and that’s exactly what we aim to achieve. While Baymax Bot doesn’t provide medical treatment, we’re here to guide you to the right resources and offer insights to make your healthcare journey smoother.</p>
+        </section>
+        <section>
+            <h2>Disclaimer</h2>
+            <p>Baymax Bot does not diagnose or treat medical conditions. Always consult a qualified healthcare professional for medical advice, diagnosis, or treatment. Our service is meant to supplement your understanding and encourage better communication with your doctor.</p>
+        </section>
+    </main>
+    <footer>
+        <p>Thank you for choosing Baymax Bot as your health companion. Let’s create a healthier future together!</p>
+    </footer>
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const navbarPlaceholder = document.getElementById("navbar-placeholder");
+        const navbarPath = "Components/NBar/Navbar.html";
+    
+    
+        fetch(navbarPath)
+          .then((response) => {
+            console.log("Response status:", response.status);
+            if (!response.ok) {
+              throw new Error(`Failed to fetch: ${response.statusText}`);
+            }
+            return response.text();
+          })
+          .then((data) => {
+            console.log("Navbar content successfully fetched.");
+            navbarPlaceholder.innerHTML = data;
+          })
+          .catch((err) => {
+            console.error("Error loading navbar:", err);
+            navbarPlaceholder.innerHTML =
+              "<p>Failed to load navbar. Please try again later.</p>";
+          });
+      });
+    </script>
+</body>
+</html>
