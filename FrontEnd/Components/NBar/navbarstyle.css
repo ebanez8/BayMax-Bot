@@ -1,32 +1,64 @@
-.navbar {
+/* Add a custom class for the navbar to avoid Bootstrap overrides */
+.custom-navbar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  justify-content: center; /* Center all sections horizontally */
+  align-items: center; /* Center content vertically */
+  background-color: #b9c7d4 !important; /* Force background color */
   font-family: 'Merriweather', sans-serif;
   height: 5vh; /* Adjust height as needed */
 }
 
+/* Styling for container-fluid */
 .container-fluid {
   display: flex;
+  justify-content: space-between; /* Spacing for left, middle, and right sections */
+  align-items: center;
   width: 100%;
-  justify-content: space-between; /* Ensures left and right alignment */
+  max-width: 2000px; /* Optional: Limit width */
+  padding: 0 20px;
+}
+
+.navbar .nav-link {
   position: relative;
+  text-decoration: none;
+  color: black;
+  font-size: 16px;
+  padding: 5px 10px;
 }
 
-.mx-auto {
+.navbar .nav-link:hover {
+  color: #000000;
+}
+
+.navbar .nav-link::after {
+  content: '';
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  text-align: center;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background-color: #f3f3f3;
+  transition: width 0.3s ease;
 }
 
+.navbar .nav-link:hover::after {
+  width: 100%;
+}
+
+
+/* Right Section */
 .d-flex {
   display: flex;
-  gap: 20px; /* Adjust spacing between right section links */
+  gap: 15px;
 }
 
+/* Common Link Styles */
 .navbar a {
-  text-decoration: none; /* Removes underline from links */
-  color: black; /* Adjust text color */
-  font-size: 32x; /* Optional: Adjust font size */
+  text-decoration: none; /* Remove underline */
+  color: black; /* Link color */
+  font-size: 16px;
+}
+
+.navbar-brand {
+  font-weight: bold;
 }
